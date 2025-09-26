@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import * as turf from '@turf/helpers';
 import { area } from '@turf/area';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Navigation, MapPin, Trash2, Save, Eye, EyeOff } from 'lucide-react';
 
@@ -22,39 +21,35 @@ interface Polygon {
 
 const SatelliteMap = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
-  const [mapboxToken, setMapboxToken] = useState('');
-  const [isTokenValid, setIsTokenValid] = useState(false);
+  const map = useRef<L.Map | null>(null);
   const [currentPolygon, setCurrentPolygon] = useState<number[][]>([]);
   const [savedPolygons, setSavedPolygons] = useState<Polygon[]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [showSavedPolygons, setShowSavedPolygons] = useState(true);
+  const [currentPolygonLayer, setCurrentPolygonLayer] = useState<L.Polygon | null>(null);
+  const [currentMarkers, setCurrentMarkers] = useState<L.Marker[]>([]);
+  const [savedPolygonLayers, setSavedPolygonLayers] = useState<Map<string, L.Polygon>>(new Map());
+  const [currentLocationMarker, setCurrentLocationMarker] = useState<L.Marker | null>(null);
 
-  // Initialize map once token is provided
+  // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || !isTokenValid) return;
+    if (!mapContainer.current || map.current) return;
 
-    mapboxgl.accessToken = mapboxToken;
-    
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/satellite-streets-v12',
-      center: [78.9629, 20.5937], // Center of India
+    // Initialize Leaflet map
+    map.current = L.map(mapContainer.current, {
+      center: [20.5937, 78.9629], // Center of India
       zoom: 5,
-      pitch: 0,
-      bearing: 0,
+      zoomControl: false,
     });
 
-    // Add navigation controls
-    map.current.addControl(
-      new mapboxgl.NavigationControl({
-        visualizePitch: true,
-      }),
-      'top-right'
-    );
+    // Add Esri World Imagery tile layer
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+      maxZoom: 18,
+    }).addTo(map.current);
 
-    // Add fullscreen control
-    map.current.addControl(new mapboxgl.FullscreenControl(), 'top-right');
+    // Add zoom controls to top-right
+    L.control.zoom({ position: 'topright' }).addTo(map.current);
 
     // Handle map clicks for polygon drawing
     map.current.on('click', handleMapClick);
@@ -64,22 +59,9 @@ const SatelliteMap = () => {
 
     return () => {
       map.current?.remove();
+      map.current = null;
     };
-  }, [isTokenValid, mapboxToken]);
-
-  const validateToken = (token: string) => {
-    if (token.startsWith('pk.') && token.length > 50) {
-      setIsTokenValid(true);
-      toast.success('Mapbox token validated successfully!');
-    } else {
-      toast.error('Invalid Mapbox token. Please check and try again.');
-    }
-  };
-
-  const handleTokenSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    validateToken(mapboxToken);
-  };
+  }, []);
 
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -90,17 +72,28 @@ const SatelliteMap = () => {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        map.current?.flyTo({
-          center: [longitude, latitude],
-          zoom: 15,
-          duration: 2000,
-        });
         
-        // Add a marker for current location
-        new mapboxgl.Marker({ color: '#0ea5e9' })
-          .setLngLat([longitude, latitude])
-          .addTo(map.current!);
+        if (!map.current) return;
+
+        // Fly to location
+        map.current.setView([latitude, longitude], 15);
         
+        // Remove existing location marker
+        if (currentLocationMarker) {
+          map.current.removeLayer(currentLocationMarker);
+        }
+
+        // Add marker for current location
+        const marker = L.marker([latitude, longitude], {
+          icon: L.divIcon({
+            className: 'current-location-marker',
+            html: '<div class="w-4 h-4 bg-sky-500 rounded-full border-2 border-white shadow-lg"></div>',
+            iconSize: [16, 16],
+            iconAnchor: [8, 8],
+          }),
+        }).addTo(map.current);
+        
+        setCurrentLocationMarker(marker);
         toast.success('Navigated to your current location!');
       },
       (error) => {
@@ -115,19 +108,26 @@ const SatelliteMap = () => {
     );
   };
 
-  const handleMapClick = (e: mapboxgl.MapMouseEvent) => {
-    if (!isDrawing) return;
+  const handleMapClick = (e: L.LeafletMouseEvent) => {
+    if (!isDrawing || !map.current) return;
 
-    const { lng, lat } = e.lngLat;
-    const newPoint = [lng, lat];
+    const { lat, lng } = e.latlng;
+    const newPoint = [lng, lat]; // Note: GeoJSON uses [lng, lat] format
     const updatedPolygon = [...currentPolygon, newPoint];
     
     setCurrentPolygon(updatedPolygon);
 
     // Add marker for the point
-    new mapboxgl.Marker({ color: '#ef4444' })
-      .setLngLat([lng, lat])
-      .addTo(map.current!);
+    const marker = L.marker([lat, lng], {
+      icon: L.divIcon({
+        className: 'polygon-point-marker',
+        html: '<div class="w-3 h-3 bg-red-500 rounded-full border-2 border-white shadow-lg"></div>',
+        iconSize: [12, 12],
+        iconAnchor: [6, 6],
+      }),
+    }).addTo(map.current);
+
+    setCurrentMarkers(prev => [...prev, marker]);
 
     // If we have at least 3 points, draw the polygon
     if (updatedPolygon.length >= 3) {
@@ -140,48 +140,23 @@ const SatelliteMap = () => {
   const drawCurrentPolygon = (coordinates: number[][]) => {
     if (!map.current || coordinates.length < 3) return;
 
-    // Close the polygon by adding the first point at the end
-    const closedCoordinates = [...coordinates, coordinates[0]];
-
     // Remove existing current polygon
-    if (map.current.getSource('current-polygon')) {
-      map.current.removeLayer('current-polygon-fill');
-      map.current.removeLayer('current-polygon-line');
-      map.current.removeSource('current-polygon');
+    if (currentPolygonLayer) {
+      map.current.removeLayer(currentPolygonLayer);
     }
 
-    // Add polygon source and layers
-    map.current.addSource('current-polygon', {
-      type: 'geojson',
-      data: {
-        type: 'Feature',
-        geometry: {
-          type: 'Polygon',
-          coordinates: [closedCoordinates],
-        },
-        properties: {},
-      },
-    });
+    // Convert coordinates to Leaflet format [lat, lng]
+    const leafletCoords = coordinates.map(coord => [coord[1], coord[0]] as [number, number]);
 
-    map.current.addLayer({
-      id: 'current-polygon-fill',
-      type: 'fill',
-      source: 'current-polygon',
-      paint: {
-        'fill-color': '#0ea5e9',
-        'fill-opacity': 0.3,
-      },
-    });
+    // Create polygon
+    const polygon = L.polygon(leafletCoords, {
+      color: '#0ea5e9',
+      fillColor: '#0ea5e9',
+      fillOpacity: 0.3,
+      weight: 2,
+    }).addTo(map.current);
 
-    map.current.addLayer({
-      id: 'current-polygon-line',
-      type: 'line',
-      source: 'current-polygon',
-      paint: {
-        'line-color': '#0ea5e9',
-        'line-width': 2,
-      },
-    });
+    setCurrentPolygonLayer(polygon);
   };
 
   const calculateArea = (coordinates: number[][]) => {
@@ -228,40 +203,27 @@ const SatelliteMap = () => {
   const addSavedPolygonToMap = (polygon: Polygon) => {
     if (!map.current) return;
 
-    const closedCoordinates = [...polygon.coordinates, polygon.coordinates[0]];
-    const sourceId = `polygon-${polygon.id}`;
+    // Convert coordinates to Leaflet format [lat, lng]
+    const leafletCoords = polygon.coordinates.map(coord => [coord[1], coord[0]] as [number, number]);
 
-    map.current.addSource(sourceId, {
-      type: 'geojson',
-      data: {
-        type: 'Feature',
-        geometry: {
-          type: 'Polygon',
-          coordinates: [closedCoordinates],
-        },
-        properties: { id: polygon.id, name: polygon.name },
-      },
-    });
+    // Create polygon
+    const leafletPolygon = L.polygon(leafletCoords, {
+      color: '#10b981',
+      fillColor: '#10b981',
+      fillOpacity: 0.2,
+      weight: 2,
+    }).addTo(map.current);
 
-    map.current.addLayer({
-      id: `${sourceId}-fill`,
-      type: 'fill',
-      source: sourceId,
-      paint: {
-        'fill-color': '#10b981',
-        'fill-opacity': 0.2,
-      },
-    });
+    // Add popup with polygon info
+    leafletPolygon.bindPopup(`
+      <div class="text-sm">
+        <strong>${polygon.name}</strong><br/>
+        Area: ${polygon.area.hectares} ha<br/>
+        (${polygon.area.sqMeters} m²)
+      </div>
+    `);
 
-    map.current.addLayer({
-      id: `${sourceId}-line`,
-      type: 'line',
-      source: sourceId,
-      paint: {
-        'line-color': '#10b981',
-        'line-width': 2,
-      },
-    });
+    setSavedPolygonLayers(prev => new Map(prev.set(polygon.id, leafletPolygon)));
   };
 
   const loadSavedPolygons = () => {
@@ -277,23 +239,22 @@ const SatelliteMap = () => {
   };
 
   const clearCurrentPolygon = () => {
+    if (!map.current) return;
+
     setCurrentPolygon([]);
     setIsDrawing(false);
 
     // Remove current polygon from map
-    if (map.current?.getSource('current-polygon')) {
-      map.current.removeLayer('current-polygon-fill');
-      map.current.removeLayer('current-polygon-line');
-      map.current.removeSource('current-polygon');
+    if (currentPolygonLayer) {
+      map.current.removeLayer(currentPolygonLayer);
+      setCurrentPolygonLayer(null);
     }
 
-    // Clear all red markers (drawing points)
-    document.querySelectorAll('.mapboxgl-marker').forEach(marker => {
-      const markerElement = marker as HTMLElement;
-      if (markerElement.style.backgroundColor === 'rgb(239, 68, 68)') {
-        marker.remove();
-      }
+    // Clear all markers
+    currentMarkers.forEach(marker => {
+      map.current?.removeLayer(marker);
     });
+    setCurrentMarkers([]);
   };
 
   const deleteSavedPolygon = (polygonId: string) => {
@@ -302,80 +263,33 @@ const SatelliteMap = () => {
     localStorage.setItem('savedPolygons', JSON.stringify(updatedPolygons));
 
     // Remove from map
-    const sourceId = `polygon-${polygonId}`;
-    if (map.current?.getSource(sourceId)) {
-      map.current.removeLayer(`${sourceId}-fill`);
-      map.current.removeLayer(`${sourceId}-line`);
-      map.current.removeSource(sourceId);
+    const polygonLayer = savedPolygonLayers.get(polygonId);
+    if (polygonLayer && map.current) {
+      map.current.removeLayer(polygonLayer);
+      setSavedPolygonLayers(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(polygonId);
+        return newMap;
+      });
     }
 
     toast.success('Polygon deleted');
   };
 
   const toggleSavedPolygonsVisibility = () => {
-    setShowSavedPolygons(!showSavedPolygons);
+    if (!map.current) return;
+
+    const newVisibility = !showSavedPolygons;
+    setShowSavedPolygons(newVisibility);
     
-    savedPolygons.forEach(polygon => {
-      const sourceId = `polygon-${polygon.id}`;
-      if (map.current?.getLayer(`${sourceId}-fill`)) {
-        map.current.setLayoutProperty(
-          `${sourceId}-fill`,
-          'visibility',
-          showSavedPolygons ? 'none' : 'visible'
-        );
-        map.current.setLayoutProperty(
-          `${sourceId}-line`,
-          'visibility',
-          showSavedPolygons ? 'none' : 'visible'
-        );
+    savedPolygonLayers.forEach(layer => {
+      if (newVisibility) {
+        map.current?.addLayer(layer);
+      } else {
+        map.current?.removeLayer(layer);
       }
     });
   };
-
-  // Token input screen
-  if (!isTokenValid) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Card className="w-full max-w-md p-6 glass">
-          <div className="space-y-4">
-            <div className="text-center">
-              <h1 className="text-2xl font-bold text-foreground">Satellite Mapper</h1>
-              <p className="text-muted-foreground mt-2">
-                Enter your Mapbox public token to get started
-              </p>
-            </div>
-            
-            <form onSubmit={handleTokenSubmit} className="space-y-4">
-              <div>
-                <Input
-                  type="text"
-                  placeholder="pk.eyJ1IjoieW91cnVzZXJuYW1lIiwiYSI6..."
-                  value={mapboxToken}
-                  onChange={(e) => setMapboxToken(e.target.value)}
-                  className="font-mono text-xs"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Get your token from{' '}
-                  <a
-                    href="https://mapbox.com/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline"
-                  >
-                    mapbox.com
-                  </a>
-                </p>
-              </div>
-              
-              <Button type="submit" className="w-full">
-                Initialize Map
-              </Button>
-            </form>
-          </div>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="relative w-full h-screen">
@@ -509,6 +423,15 @@ const SatelliteMap = () => {
           </div>
         </div>
       </Card>
+
+      {/* Custom styles for markers */}
+      <style>{`
+        .current-location-marker,
+        .polygon-point-marker {
+          background: transparent !important;
+          border: none !important;
+        }
+      `}</style>
     </div>
   );
 };
