@@ -2,41 +2,67 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Professional GIS/Mapping Design System - Dark theme optimized for satellite imagery */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Dark backgrounds for professional mapping interface */
+    --background: 220 13% 9%;
+    --foreground: 210 20% 95%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    /* Glass-morphism cards for floating controls */
+    --card: 220 13% 12%;
+    --card-foreground: 210 20% 95%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 220 13% 12%;
+    --popover-foreground: 210 20% 95%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Bright accent for active states and primary actions */
+    --primary: 199 89% 48%;
+    --primary-foreground: 210 20% 95%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Subtle secondary elements */
+    --secondary: 220 13% 18%;
+    --secondary-foreground: 210 15% 85%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Muted elements for less important UI */
+    --muted: 220 13% 15%;
+    --muted-foreground: 210 10% 65%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Accent for highlights and interactive elements */
+    --accent: 220 13% 18%;
+    --accent-foreground: 210 20% 95%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Warning/destructive actions */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 20% 95%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Subtle borders and inputs */
+    --border: 220 13% 18%;
+    --input: 220 13% 15%;
+    --ring: 199 89% 48%;
 
-    --radius: 0.5rem;
+    /* Professional rounded corners */
+    --radius: 0.75rem;
+
+    /* Custom mapping design tokens */
+    --glass-bg: 220 13% 12% / 0.8;
+    --glass-border: 210 15% 25% / 0.3;
+    --success: 142 76% 36%;
+    --warning: 38 92% 50%;
+    --info: 199 89% 48%;
+    
+    /* Gradients for enhanced visual appeal */
+    --gradient-primary: linear-gradient(135deg, hsl(199 89% 48%), hsl(199 89% 60%));
+    --gradient-glass: linear-gradient(135deg, hsl(220 13% 12% / 0.9), hsl(220 13% 15% / 0.7));
+    
+    /* Shadows for depth */
+    --shadow-glass: 0 8px 32px hsl(220 13% 5% / 0.4);
+    --shadow-float: 0 4px 16px hsl(220 13% 5% / 0.3);
+    
+    /* Animation transitions */
+    --transition-smooth: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
     --sidebar-background: 0 0% 98%;
 
@@ -56,41 +82,26 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Dark mode uses the same professional mapping theme */
+    --background: 220 13% 9%;
+    --foreground: 210 20% 95%;
+    --card: 220 13% 12%;
+    --card-foreground: 210 20% 95%;
+    --popover: 220 13% 12%;
+    --popover-foreground: 210 20% 95%;
+    --primary: 199 89% 48%;
+    --primary-foreground: 210 20% 95%;
+    --secondary: 220 13% 18%;
+    --secondary-foreground: 210 15% 85%;
+    --muted: 220 13% 15%;
+    --muted-foreground: 210 10% 65%;
+    --accent: 220 13% 18%;
+    --accent-foreground: 210 20% 95%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 20% 95%;
+    --border: 220 13% 18%;
+    --input: 220 13% 15%;
+    --ring: 199 89% 48%;
   }
 }
 
@@ -100,6 +111,44 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-mono;
+    overflow: hidden; /* Prevent scrolling for full-screen map */
+  }
+
+  /* Glass morphism utility classes */
+  .glass {
+    background: hsl(var(--glass-bg));
+    border: 1px solid hsl(var(--glass-border));
+    backdrop-filter: blur(12px);
+    box-shadow: var(--shadow-glass);
+  }
+
+  .glass-hover {
+    transition: var(--transition-smooth);
+  }
+
+  .glass-hover:hover {
+    background: hsl(var(--glass-bg) / 0.9);
+    box-shadow: var(--shadow-float);
+  }
+
+  /* Remove mapbox attribution for cleaner look */
+  .mapboxgl-ctrl-attrib {
+    display: none !important;
+  }
+
+  /* Custom scrollbar for panels */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+    border-radius: 2px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--primary));
+    border-radius: 2px;
   }
 }
